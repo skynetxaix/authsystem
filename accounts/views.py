@@ -7,7 +7,8 @@ from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
-
+from .serializers import RegisterSerializer, LoginSerializer
+from .authentication import ExpiringTokenAuthentication
 class RegisterView(APIView):
 
     def post(self,request):
@@ -30,8 +31,10 @@ class RegisterView(APIView):
 class LoginView (APIView):
 
     def post(self, request):
-        username = request.data['username']
-        password = request.data['password']
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        username = serializer.validated_data['username']
+        password = serializer.validated_data['password']
 
         user =authenticate(username=username, password=password)
 
@@ -39,13 +42,24 @@ class LoginView (APIView):
             token, created = Token.objects.get_or_create(user=user)
             return Response({"token": token.key}, status=status.HTTP_200_OK)
         else:
-            return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
 
 
 class ProfileView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self,request):
         return Response({"username": request.user.username, "email": request.user.email})
+    
+
+
+
+class LogoutView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        request.user.auth_token.delete()
+        return Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
