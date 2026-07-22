@@ -9,6 +9,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
 from .serializers import RegisterSerializer, LoginSerializer
 from .authentication import ExpiringTokenAuthentication
+import logging
+logger = logging.getLogger('accounts')
 class RegisterView(APIView):
 
     def post(self,request):
@@ -42,6 +44,7 @@ class LoginView (APIView):
             token, created = Token.objects.get_or_create(user=user)
             return Response({"token": token.key}, status=status.HTTP_200_OK)
         else:
+            logger.warning(f"Failed login attempt for username: {username}")
             return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
 
